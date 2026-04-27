@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Wizard,
   WizardStep,
@@ -88,12 +88,42 @@ const ProfileBuilder: React.FC = () => {
     a.click();
   };
 
-  const steps = useMemo(
-    () => [
-      {
-        id: "step-product",
-        name: _("Product"),
-        component: (
+  return (
+    <StandalonePage title={_("Agama Profile Builder")}>
+      <Wizard
+        header={<Title headingLevel="h1">{_("Generate Agama Profile")}</Title>}
+        onStepChange={(_event, currentStep) => {
+          if (currentStep.id === "step-review") {
+            generateJson();
+          }
+        }}
+        height="100%"
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        footer={(activeStep: any, onNext: any, onBack: any, onClose: any) => {
+          if (!activeStep) return null;
+          const isReview = activeStep.id === "step-review";
+          const canDownload = json && !isModified && validationErrors.length === 0;
+
+          return (
+            <WizardFooter
+              activeStep={activeStep}
+              onNext={() => {
+                if (isReview && canDownload) {
+                  downloadFile();
+                } else {
+                  onNext();
+                }
+              }}
+              onBack={onBack}
+              onClose={onClose}
+              nextButtonText={isReview && canDownload ? _("Download profile") : _("Next")}
+              isNextDisabled={isReview && !canDownload}
+              isCancelHidden
+            />
+          );
+        }}
+      >
+        <WizardStep id="step-product" name={_("Product")}>
           <Form>
             <FormGroup label={_("SUSE Linux Enterprise")} fieldId="product-sles">
               {SLES_PRODUCTS.map((p) => (
@@ -128,12 +158,9 @@ const ProfileBuilder: React.FC = () => {
               />
             </FormGroup>
           </Form>
-        ),
-      },
-      {
-        id: "step-system",
-        name: _("System"),
-        component: (
+        </WizardStep>
+
+        <WizardStep id="step-system" name={_("System")}>
           <Form>
             <FormGroup label={_("Static Hostname")} fieldId="hostname-static">
               <TextInput
@@ -176,12 +203,9 @@ const ProfileBuilder: React.FC = () => {
               </GridItem>
             </Grid>
           </Form>
-        ),
-      },
-      {
-        id: "step-users",
-        name: _("Users"),
-        component: (
+        </WizardStep>
+
+        <WizardStep id="step-users" name={_("Users")}>
           <Form>
             <Title headingLevel="h3">{_("First User")}</Title>
             <FormGroup label={_("Full Name")} isRequired fieldId="user-fullname">
@@ -237,12 +261,9 @@ const ProfileBuilder: React.FC = () => {
               />
             </FormGroup>
           </Form>
-        ),
-      },
-      {
-        id: "step-software",
-        name: _("Software"),
-        component: (
+        </WizardStep>
+
+        <WizardStep id="step-software" name={_("Software")}>
           <Form>
             <FormGroup label={_("Additional Packages")} fieldId="soft-packages">
               <TextArea
@@ -271,12 +292,9 @@ const ProfileBuilder: React.FC = () => {
               />
             </FormGroup>
           </Form>
-        ),
-      },
-      {
-        id: "step-storage",
-        name: _("Storage"),
-        component: (
+        </WizardStep>
+
+        <WizardStep id="step-storage" name={_("Storage")}>
           <Form>
             <FormGroup fieldId="storage-boot-config">
               <Switch
@@ -301,12 +319,9 @@ const ProfileBuilder: React.FC = () => {
               </EmptyStateBody>
             </EmptyState>
           </Form>
-        ),
-      },
-      {
-        id: "step-network",
-        name: _("Network"),
-        component: (
+        </WizardStep>
+
+        <WizardStep id="step-network" name={_("Network")}>
           <Form>
             <FormGroup fieldId="net-copy">
               <Switch
@@ -339,12 +354,9 @@ const ProfileBuilder: React.FC = () => {
               />
             </FormGroup>
           </Form>
-        ),
-      },
-      {
-        id: "step-boot",
-        name: _("Boot"),
-        component: (
+        </WizardStep>
+
+        <WizardStep id="step-boot" name={_("Boot")}>
           <Form>
             <FormGroup label={_("Bootloader Timeout")} fieldId="boot-timeout">
               <TextInput
@@ -366,12 +378,9 @@ const ProfileBuilder: React.FC = () => {
               />
             </FormGroup>
           </Form>
-        ),
-      },
-      {
-        id: "step-review",
-        name: _("Review"),
-        component: (
+        </WizardStep>
+
+        <WizardStep id="step-review" name={_("Review")}>
           <Stack hasGutter>
             <StackItem>
               <div
@@ -448,53 +457,8 @@ const ProfileBuilder: React.FC = () => {
               </EmptyState>
             </StackItem>
           </Stack>
-        ),
-      },
-    ],
-    [profile, json, isModified, validationErrors, copied, validate],
-  );
-
-  return (
-    <StandalonePage title={_("Agama Profile Builder")}>
-      <div style={{ height: "calc(100vh - 120px)" }}>
-        <Wizard
-          header={<Title headingLevel="h1">{_("Generate Agama Profile")}</Title>}
-          onStepChange={(_event, currentStep) => {
-            if (currentStep.id === "step-review") {
-              generateJson();
-            }
-          }}
-          height="100%"
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          footer={({ activeStep, onNext, onBack, onClose }: any) => {
-            if (!activeStep) return null;
-            const isReview = activeStep.id === "step-review";
-            const canDownload = json && !isModified && validationErrors.length === 0;
-
-            return (
-              <WizardFooter
-                activeStep={activeStep}
-                onNext={() => {
-                  if (isReview && canDownload) {
-                    downloadFile();
-                  } else {
-                    onNext();
-                  }
-                }}
-                onBack={onBack}
-                onClose={onClose}
-                nextButtonText={isReview && canDownload ? _("Download profile") : _("Next")}
-                isNextDisabled={isReview && !canDownload}
-                cancelButtonProps={{ style: { display: "none" } }}
-              />
-            );
-          }}
-        >
-          {steps.map((step) => (
-            <WizardStep key={step.id} {...step} />
-          ))}
-        </Wizard>
-      </div>
+        </WizardStep>
+      </Wizard>
     </StandalonePage>
   );
 };
