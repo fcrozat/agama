@@ -102,6 +102,6 @@ export default [
     rules: { eqeqeq: "off", "@typescript-eslint/no-unused-vars": "off" },
   },
   {
-    ignores: ["node_modules/*", "src/lib/*", "src/**/test-data/*"],
+    ignores: ["node_modules/*", "src/lib/*", "src/**/test-data/*", "src/ProfileBuilder/wasm/*"],
   },
 ];
