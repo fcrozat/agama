@@ -18,6 +18,7 @@ import {
 import { Profile } from "./types";
 import Page from "~/components/core/Page";
 import { _ } from "~/i18n";
+import { profileSchema } from "./schema";
 // @ts-ignore - will be available after setup
 import yamlLib from "js-yaml";
 // @ts-ignore - will be available after setup
@@ -49,13 +50,8 @@ const ProfileBuilder: React.FC = () => {
 
     if (wasmReady) {
       try {
-        // Fetch the schema (assuming it's available in public or similar)
-        const response = await fetch("/api/v2/config/schema"); // Adjust path as needed
-        if (response.ok) {
-          const schemaJson = await response.text();
-          const result = validate_profile(content, schemaJson);
-          setValidationErrors(result.errors);
-        }
+        const result = validate_profile(content, JSON.stringify(profileSchema));
+        setValidationErrors(result.errors);
       } catch (e) {
         console.error("Validation failed", e);
       }
