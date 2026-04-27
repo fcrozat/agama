@@ -1,5 +1,4 @@
 use wasm_bindgen::prelude::*;
-use jsonschema::Validator;
 use serde_json::Value;
 
 #[wasm_bindgen]
