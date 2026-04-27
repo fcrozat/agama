@@ -44,3 +44,39 @@ pub fn validate_profile(profile_yaml: &str, schema_json: &str) -> Result<Validat
         errors,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_profile_valid() {
+        let schema = r#"{
+            "type": "object",
+            "properties": {
+                "product": { "type": "string" }
+            },
+            "required": ["product"]
+        }"#;
+        let profile = "product: Tumbleweed";
+        let result = validate_profile(profile, schema).unwrap();
+        assert!(result.is_valid());
+        assert!(result.errors().is_empty());
+    }
+
+    #[test]
+    fn test_validate_profile_invalid() {
+        let schema = r#"{
+            "type": "object",
+            "properties": {
+                "product": { "type": "string" }
+            },
+            "required": ["product"]
+        }"#;
+        let profile = "wrong: field";
+        let result = validate_profile(profile, schema).unwrap();
+        assert!(!result.is_valid());
+        assert!(!result.errors().is_empty());
+        assert!(result.errors()[0].contains("product\" is a required property"));
+    }
+}

@@ -38,7 +38,8 @@ import registrationRoutes from "~/routes/registration";
 import storageRoutes from "~/routes/storage";
 import softwareRoutes from "~/routes/software";
 import usersRoutes from "~/routes/users";
-import { HOSTNAME, ROOT as PATHS } from "./routes/paths";
+import ProfileBuilder from "~/ProfileBuilder/ProfileBuilder";
+import { HOSTNAME, ROOT as PATHS, PROFILE_BUILDER } from "./routes/paths";
 import { N_ } from "~/i18n";
 
 const rootRoutes = () => [
@@ -102,6 +103,10 @@ const router = () =>
     {
       path: PATHS.installationExit,
       element: <InstallationExit />,
+    },
+    {
+      path: PROFILE_BUILDER.root,
+      element: <ProfileBuilder />,
     },
     {
       path: PATHS.root,
