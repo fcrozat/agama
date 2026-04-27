@@ -41,7 +41,11 @@ const StandalonePage: React.FC<StandalonePageProps> = ({ title, children }) => {
         </Masthead>
       }
     >
-      <PageSection isFilled padding={{ default: "noPadding" }} style={{ overflow: "hidden" }}>
+      <PageSection
+        isFilled
+        padding={{ default: "noPadding" }}
+        style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}
+      >
         {children}
       </PageSection>
     </PFPage>

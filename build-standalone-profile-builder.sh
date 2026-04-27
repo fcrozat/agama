@@ -24,7 +24,8 @@ npm install
 
 echo "Step 3: Building static web assets..."
 # This generates the standalone profile_builder.html and profile_builder.js in web/dist
-npm run build
+# We use NODE_ENV=production to ensure a clean build without React Refresh instrumentation.
+NODE_ENV=production npm run build
 
 echo ""
 echo "==============================================================="

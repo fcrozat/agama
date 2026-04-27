@@ -1,0 +1,9 @@
+// Force the wizard to fill the viewport (minus the masthead) so the
+// Back/Next footer always lands at the same vertical position regardless
+// of how tall the active step's content is.
+.profile-builder-wizard {
+  min-height: calc(100vh - 80px);
+  height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+}

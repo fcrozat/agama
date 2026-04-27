@@ -18,6 +18,7 @@ const webpack = require("webpack");
 /* A standard nodejs and webpack pattern */
 const production = process.env.NODE_ENV === "production";
 const development = !production;
+const serve = process.env.WEBPACK_SERVE === "true";
 
 /* development options for faster iteration */
 const eslint = process.env.ESLINT !== "0";
@@ -45,7 +46,7 @@ const copy_files = [
 const plugins = [
   new Copy({ patterns: copy_files }),
   new Extract({ filename: "[name].css" }),
-  development && new ReactRefreshWebpackPlugin({ overlay: false }),
+  serve && new ReactRefreshWebpackPlugin({ overlay: false }),
   // replace the "process.env.WEBPACK_SERVE" text in the source code by
   // the current value of the environment variable, that variable is set to
   // "true" when running the development server ("npm run server")
@@ -163,14 +164,14 @@ module.exports = {
           {
             loader: "babel-loader",
             options: {
-              plugins: [development && require.resolve("react-refresh/babel")].filter(Boolean),
+              plugins: [serve && require.resolve("react-refresh/babel")].filter(Boolean),
             },
           },
           {
             loader: require.resolve("ts-loader"),
             options: {
               getCustomTransformers: () => ({
-                before: [development && ReactRefreshTypeScript.default()].filter(Boolean),
+                before: [serve && ReactRefreshTypeScript.default()].filter(Boolean),
               }),
               // skip the TypeScript type checks in the TS loader, the types are checked by the
               // "fork-ts-checker-webpack-plugin" which runs the checks in parallel in a separate

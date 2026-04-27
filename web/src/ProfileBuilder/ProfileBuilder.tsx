@@ -26,11 +26,12 @@ import { profileSchema } from "./schema";
 import { SLES_PRODUCTS, OPENSUSE_PRODUCTS } from "./products";
 // @ts-ignore - will be available after setup
 import init, { validate_profile } from "./wasm";
+import "./ProfileBuilder.scss";
 
 const ProfileBuilder: React.FC = () => {
   const [profile, setProfile] = useState<Profile>({
     product: { id: "Tumbleweed" },
-    l10n: { locale: "en_US.UTF-8", timezone: "UTC" },
+    l10n: { locale: "en_US.UTF-8", keymap: "us", timezone: "UTC" },
   });
 
   const [json, setJson] = useState<string>("");
@@ -38,6 +39,7 @@ const ProfileBuilder: React.FC = () => {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [wasmReady, setWasmReady] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [packagesText, setPackagesText] = useState<string>("");
 
   useEffect(() => {
     init("/agama_profile_wasm_bg.wasm")
@@ -68,11 +70,23 @@ const ProfileBuilder: React.FC = () => {
   };
 
   const generateJson = useCallback(() => {
-    const content = JSON.stringify(profile, null, 2);
+    // Parse packages from text input
+    const packages = packagesText
+      .split(/[\s,]+/)
+      .map((s) => s.trim())
+      .filter((s) => s !== "");
+
+    // Build final profile with parsed packages
+    const finalProfile = {
+      ...profile,
+      software: packages.length > 0 ? { ...profile.software, packages } : profile.software,
+    };
+
+    const content = JSON.stringify(finalProfile, null, 2);
     setJson(content);
     setIsModified(false);
     validate(content);
-  }, [profile, validate]);
+  }, [profile, packagesText, validate]);
 
   const handleManualEdit = (_event: React.ChangeEvent<HTMLTextAreaElement>, value: string) => {
     setJson(value);
@@ -86,18 +100,19 @@ const ProfileBuilder: React.FC = () => {
     a.href = url;
     a.download = "profile.json";
     a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
     <StandalonePage title={_("Agama Profile Builder")}>
       <Wizard
+        className="profile-builder-wizard"
         header={<Title headingLevel="h1">{_("Generate Agama Profile")}</Title>}
         onStepChange={(_event, currentStep) => {
           if (currentStep.id === "step-review") {
             generateJson();
           }
         }}
-        height="100%"
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         footer={(activeStep: any, onNext: any, onBack: any, onClose: any) => {
           if (!activeStep) return null;
@@ -116,7 +131,7 @@ const ProfileBuilder: React.FC = () => {
               }}
               onBack={onBack}
               onClose={onClose}
-              nextButtonText={isReview && canDownload ? _("Download profile") : _("Next")}
+              nextButtonText={isReview ? _("Download profile") : _("Next")}
               isNextDisabled={isReview && !canDownload}
               isCancelHidden
             />
@@ -133,7 +148,7 @@ const ProfileBuilder: React.FC = () => {
                   id={p.id}
                   name="product"
                   isChecked={profile.product.id === p.id}
-                  onChange={() => updateProfile({ product: { id: p.id } })}
+                  onChange={() => updateProfile({ product: { ...profile.product, id: p.id } })}
                 />
               ))}
             </FormGroup>
@@ -145,12 +160,13 @@ const ProfileBuilder: React.FC = () => {
                   id={p.id}
                   name="product"
                   isChecked={profile.product.id === p.id}
-                  onChange={() => updateProfile({ product: { id: p.id } })}
+                  onChange={() => updateProfile({ product: { ...profile.product, id: p.id } })}
                 />
               ))}
             </FormGroup>
             <FormGroup label={_("Registration Code")} fieldId="reg-code">
               <TextInput
+                id="reg-code"
                 value={profile.product.registrationCode || ""}
                 onChange={(_e, val) =>
                   updateProfile({ product: { ...profile.product, registrationCode: val } })
@@ -164,6 +180,7 @@ const ProfileBuilder: React.FC = () => {
           <Form>
             <FormGroup label={_("Static Hostname")} fieldId="hostname-static">
               <TextInput
+                id="hostname-static"
                 value={profile.hostname?.static || ""}
                 onChange={(_e, val) =>
                   updateProfile({ hostname: { ...profile.hostname, static: val } })
@@ -174,6 +191,7 @@ const ProfileBuilder: React.FC = () => {
               <GridItem span={4}>
                 <FormGroup label={_("Locale")} fieldId="l10n-locale">
                   <TextInput
+                    id="l10n-locale"
                     value={profile.l10n?.locale || ""}
                     onChange={(_e, val) =>
                       updateProfile({ l10n: { ...profile.l10n, locale: val } })
@@ -184,6 +202,7 @@ const ProfileBuilder: React.FC = () => {
               <GridItem span={4}>
                 <FormGroup label={_("Keymap")} fieldId="l10n-keymap">
                   <TextInput
+                    id="l10n-keymap"
                     value={profile.l10n?.keymap || ""}
                     onChange={(_e, val) =>
                       updateProfile({ l10n: { ...profile.l10n, keymap: val } })
@@ -194,6 +213,7 @@ const ProfileBuilder: React.FC = () => {
               <GridItem span={4}>
                 <FormGroup label={_("Timezone")} fieldId="l10n-timezone">
                   <TextInput
+                    id="l10n-timezone"
                     value={profile.l10n?.timezone || ""}
                     onChange={(_e, val) =>
                       updateProfile({ l10n: { ...profile.l10n, timezone: val } })
@@ -244,6 +264,7 @@ const ProfileBuilder: React.FC = () => {
             </FormGroup>
             <FormGroup label={_("Password")} fieldId="user-password">
               <TextInput
+                id="user-password"
                 type="password"
                 value={profile.user?.password || ""}
                 onChange={(_e, val) => updateProfile({ user: { ...profile.user!, password: val } })}
@@ -255,6 +276,7 @@ const ProfileBuilder: React.FC = () => {
             </Title>
             <FormGroup label={_("Root Password")} fieldId="root-password">
               <TextInput
+                id="root-password"
                 type="password"
                 value={profile.root?.password || ""}
                 onChange={(_e, val) => updateProfile({ root: { ...profile.root, password: val } })}
@@ -267,19 +289,9 @@ const ProfileBuilder: React.FC = () => {
           <Form>
             <FormGroup label={_("Additional Packages")} fieldId="soft-packages">
               <TextArea
-                placeholder={_("vim, git, ...")}
-                value={profile.software?.packages?.join(", ") || ""}
-                onChange={(_e, val) =>
-                  updateProfile({
-                    software: {
-                      ...profile.software,
-                      packages: val
-                        .split(",")
-                        .map((s) => s.trim())
-                        .filter((s) => s !== ""),
-                    },
-                  })
-                }
+                placeholder={_("vim, git, nano (comma or space separated)")}
+                value={packagesText}
+                onChange={(_e, val) => setPackagesText(val)}
               />
             </FormGroup>
             <FormGroup fieldId="soft-required">
@@ -347,6 +359,7 @@ const ProfileBuilder: React.FC = () => {
             </FormGroup>
             <FormGroup label={_("HTTP Proxy")} fieldId="proxy-http">
               <TextInput
+                id="proxy-http"
                 value={profile.proxy?.httpProxy || ""}
                 onChange={(_e, val) =>
                   updateProfile({ proxy: { ...profile.proxy, httpProxy: val } })
@@ -360,6 +373,7 @@ const ProfileBuilder: React.FC = () => {
           <Form>
             <FormGroup label={_("Bootloader Timeout")} fieldId="boot-timeout">
               <TextInput
+                id="boot-timeout"
                 type="number"
                 value={profile.bootloader?.timeout?.toString() || "0"}
                 onChange={(_e, val) =>
@@ -371,6 +385,7 @@ const ProfileBuilder: React.FC = () => {
             </FormGroup>
             <FormGroup label={_("Extra Kernel Parameters")} fieldId="boot-params">
               <TextInput
+                id="boot-params"
                 value={profile.bootloader?.extraKernelParams || ""}
                 onChange={(_e, val) =>
                   updateProfile({ bootloader: { ...profile.bootloader, extraKernelParams: val } })

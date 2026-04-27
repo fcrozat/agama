@@ -29,3 +29,9 @@ declare module "*.svg?component" {
   const content: React.FunctionComponent<React.SVGAttributes<SVGElement>>;
   export default content;
 }
+
+// Fix for missing SVGIconProps in PatternFly type definitions
+type SVGIconProps = React.SVGProps<SVGSVGElement> & {
+  title?: string;
+  size?: "sm" | "md" | "lg" | "xl";
+};
