@@ -38,6 +38,7 @@ const copy_files = [
   "./src/assets/favicon.svg",
   "./src/languages.json",
   { from: "./src/assets/products/*.svg", to: "assets/logos/[name][ext]" },
+  { from: "./src/ProfileBuilder/wasm/agama_profile_wasm_bg.wasm", to: "[name][ext]" },
 ];
 
 const plugins = [
@@ -212,7 +213,6 @@ module.exports = {
           filename: "fonts/[name][ext]",
         },
       },
-      // Load SVG files
       {
         test: /\.svg$/i,
         type: "asset",

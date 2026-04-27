@@ -34,7 +34,7 @@ const ProfileBuilder: React.FC = () => {
   const [wasmReady, setWasmReady] = useState(false);
 
   useEffect(() => {
-    init()
+    init("/agama_profile_wasm_bg.wasm")
       .then(() => setWasmReady(true))
       .catch(console.error);
   }, []);
