@@ -138,6 +138,7 @@ impl std::fmt::Display for ValidationOutcome {
 /// ```
 pub struct ProfileValidator {
     validator: jsonschema::Validator,
+    schema: serde_json::Value,
 }
 
 impl ProfileValidator {
@@ -169,7 +170,14 @@ impl ProfileValidator {
             .and_then(|s| s.insert("$id".to_string(), serde_json::json!(id)));
 
         let validator = jsonschema::validator_for(&schema).expect("A valid schema");
-        Ok(Self { validator })
+        Ok(Self {
+            validator,
+            schema,
+        })
+    }
+
+    pub fn contents(&self) -> &serde_json::Value {
+        &self.schema
     }
 
     pub fn validate_file(&self, profile_path: &Path) -> Result<ValidationOutcome, ProfileError> {

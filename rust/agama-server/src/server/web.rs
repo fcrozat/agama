@@ -22,6 +22,8 @@
 
 use crate::server::config_schema;
 use crate::web::error::ErrorResponse;
+use agama_lib::error::ProfileError;
+use agama_lib::profile::ProfileValidator;
 use agama_lib::{error::ServiceError, logs};
 use agama_manager::service::Error as ManagerError;
 use agama_manager::users::PasswordCheckResult;
@@ -63,6 +65,8 @@ pub enum Error {
     Questions(#[from] question::service::Error),
     #[error(transparent)]
     ConfigSchema(#[from] config_schema::Error),
+    #[error(transparent)]
+    Profile(#[from] ProfileError),
     #[error(transparent)]
     Json(#[from] serde_json::Error),
     #[error("Missing language tag")]
@@ -136,6 +140,10 @@ pub fn server_with_state(state: ServerState) -> Result<ApiRouter, ServiceError> 
             get_with(get_config, get_config_docs)
                 .put_with(put_config, put_config_docs)
                 .patch_with(patch_config, patch_config_docs),
+        )
+        .api_route(
+            "/config/schema",
+            get_with(get_config_schema, get_config_schema_docs),
         )
         .api_route("/proposal", get_with(get_proposal, get_proposal_docs))
         .api_route("/action", post_with(run_action, run_action_docs))
@@ -253,6 +261,26 @@ fn get_config_docs(op: TransformOperation) -> TransformOperation {
         .tag("Configuration")
         .response_with::<200, Json<Config>, _>(|res| {
             res.description("Configuration retrieved successfully")
+        })
+        .response_with::<500, Json<ErrorResponse>, _>(|res| {
+            res.description("Internal server error")
+        })
+}
+
+/// Returns the configuration schema.
+async fn get_config_schema() -> Result<Json<Value>, Response> {
+    let validator =
+        ProfileValidator::default_schema().map_err(|e| Error::from(e).internal_server_error())?;
+    Ok(Json(validator.contents().clone()))
+}
+
+fn get_config_schema_docs(op: TransformOperation) -> TransformOperation {
+    op.id("getConfigurationSchema")
+        .summary("Get configuration schema")
+        .description("Returns the JSON schema for the configuration.")
+        .tag("Configuration")
+        .response_with::<200, Json<Value>, _>(|res| {
+            res.description("Configuration schema retrieved successfully")
         })
         .response_with::<500, Json<ErrorResponse>, _>(|res| {
             res.description("Internal server error")
