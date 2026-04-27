@@ -18,6 +18,10 @@ import {
 } from '@patternfly/react-core';
 import { Profile } from './types';
 import Page from '~/components/core/Page';
+// @ts-ignore - will be available after setup
+import yamlLib from 'js-yaml';
+// @ts-ignore - will be available after setup
+import init, { validate_profile } from './wasm';
 
 const ProfileBuilder: React.FC = () => {
   const [profile, setProfile] = useState<Profile>({
@@ -26,25 +30,34 @@ const ProfileBuilder: React.FC = () => {
   });
 
   const [yaml, setYaml] = useState<string>('');
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [wasmReady, setWasmReady] = useState(false);
+
+  useEffect(() => {
+    init().then(() => setWasmReady(true)).catch(console.error);
+  }, []);
 
   const updateProfile = (patch: Partial<Profile>) => {
     setProfile((prev) => ({ ...prev, ...patch }));
   };
 
-  const generateYaml = () => {
-    // In a real app, use js-yaml. For this prototype, we'll do simple stringification
-    const content = `
-product:
-  id: ${profile.product.id}
-l10n:
-  locale: ${profile.l10n?.locale}
-  timezone: ${profile.l10n?.timezone}
-${profile.user ? `user:
-  fullName: ${profile.user.fullName}
-  userName: ${profile.user.userName}
-  password: ${profile.user.password}` : ''}
-    `.trim();
+  const generateYaml = async () => {
+    const content = yamlLib.dump(profile);
     setYaml(content);
+
+    if (wasmReady) {
+      try {
+        // Fetch the schema (assuming it's available in public or similar)
+        const response = await fetch('/api/v2/config/schema'); // Adjust path as needed
+        if (response.ok) {
+          const schemaJson = await response.text();
+          const result = validate_profile(content, schemaJson);
+          setValidationErrors(result.errors);
+        }
+      } catch (e) {
+        console.error('Validation failed', e);
+      }
+    }
   };
 
   return (
@@ -112,9 +125,20 @@ ${profile.user ? `user:
             </StackItem>
             <StackItem>
               <EmptyState variant="sm">
-                <EmptyStateHeader titleText="Validation (WASM Placeholder)" headingLevel="h4" />
+                <EmptyStateHeader 
+                  titleText={validationErrors.length === 0 ? "Valid Profile" : "Validation Errors"} 
+                  headingLevel="h4" 
+                  status={validationErrors.length === 0 ? "success" : "danger"}
+                />
                 <EmptyStateBody>
-                  This profile will be validated using the Agama WebAssembly validator.
+                  {validationErrors.length === 0 
+                    ? "The profile follows the official Agama schema." 
+                    : (
+                      <ul style={{ textAlign: 'left', color: 'var(--pf-t--global--color--status--danger--default)' }}>
+                        {validationErrors.map((err, i) => <li key={i}>{err}</li>)}
+                      </ul>
+                    )
+                  }
                 </EmptyStateBody>
               </EmptyState>
             </StackItem>
