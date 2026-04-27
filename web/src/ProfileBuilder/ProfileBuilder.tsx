@@ -456,42 +456,45 @@ const ProfileBuilder: React.FC = () => {
 
   return (
     <StandalonePage title={_("Agama Profile Builder")}>
-      <Wizard
-        header={<Title headingLevel="h1">{_("Generate Agama Profile")}</Title>}
-        onStepChange={(_event, currentStep) => {
-          if (currentStep.id === "step-review") {
-            generateJson();
-          }
-        }}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        footer={({ activeStep, onNext, onBack, onClose }: any) => {
-          if (!activeStep) return null;
-          const isReview = activeStep.id === "step-review";
-          const canDownload = json && !isModified && validationErrors.length === 0;
+      <div style={{ height: "calc(100vh - 120px)" }}>
+        <Wizard
+          header={<Title headingLevel="h1">{_("Generate Agama Profile")}</Title>}
+          onStepChange={(_event, currentStep) => {
+            if (currentStep.id === "step-review") {
+              generateJson();
+            }
+          }}
+          height="100%"
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          footer={({ activeStep, onNext, onBack, onClose }: any) => {
+            if (!activeStep) return null;
+            const isReview = activeStep.id === "step-review";
+            const canDownload = json && !isModified && validationErrors.length === 0;
 
-          return (
-            <WizardFooter
-              activeStep={activeStep}
-              onNext={() => {
-                if (isReview && canDownload) {
-                  downloadFile();
-                } else {
-                  onNext();
-                }
-              }}
-              onBack={onBack}
-              onClose={onClose}
-              nextButtonText={isReview && canDownload ? _("Download profile") : _("Next")}
-              isNextDisabled={isReview && !canDownload}
-              cancelButtonProps={{ style: { display: "none" } }}
-            />
-          );
-        }}
-      >
-        {steps.map((step) => (
-          <WizardStep key={step.id} {...step} />
-        ))}
-      </Wizard>
+            return (
+              <WizardFooter
+                activeStep={activeStep}
+                onNext={() => {
+                  if (isReview && canDownload) {
+                    downloadFile();
+                  } else {
+                    onNext();
+                  }
+                }}
+                onBack={onBack}
+                onClose={onClose}
+                nextButtonText={isReview && canDownload ? _("Download profile") : _("Next")}
+                isNextDisabled={isReview && !canDownload}
+                cancelButtonProps={{ style: { display: "none" } }}
+              />
+            );
+          }}
+        >
+          {steps.map((step) => (
+            <WizardStep key={step.id} {...step} />
+          ))}
+        </Wizard>
+      </div>
     </StandalonePage>
   );
 };
