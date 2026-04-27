@@ -19,6 +19,7 @@ members = [
     "agama-storage-client",
     "agama-transfer",
     "agama-utils",
+    "agama-profile-wasm",
     "agama-users",
     "suseconnect-agama",
     "suseconnect-agama/suseconnect-agama-sys",

@@ -1,0 +1,16 @@
+[package]
+name = "agama-profile-wasm"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+jsonschema = { version = "0.30", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+log = "0.4"
+console_error_panic_hook = "0.1.7"
