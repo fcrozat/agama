@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Wizard,
   WizardStep,
+  WizardFooter,
   Form,
   FormGroup,
   TextInput,
-  ActionGroup,
   Button,
   TextArea,
   Title,
@@ -14,13 +14,16 @@ import {
   Radio,
   EmptyState,
   EmptyStateBody,
+  Switch,
+  Grid,
+  GridItem,
 } from "@patternfly/react-core";
+import { CopyIcon, CheckIcon } from "@patternfly/react-icons";
 import { Profile } from "./types";
-import Page from "~/components/core/Page";
+import StandalonePage from "./StandalonePage";
 import { _ } from "~/i18n";
 import { profileSchema } from "./schema";
-// @ts-ignore - will be available after setup
-import yamlLib from "js-yaml";
+import { SLES_PRODUCTS, OPENSUSE_PRODUCTS } from "./products";
 // @ts-ignore - will be available after setup
 import init, { validate_profile } from "./wasm";
 
@@ -30,9 +33,11 @@ const ProfileBuilder: React.FC = () => {
     l10n: { locale: "en_US.UTF-8", timezone: "UTC" },
   });
 
-  const [yaml, setYaml] = useState<string>("");
+  const [json, setJson] = useState<string>("");
+  const [isModified, setIsModified] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [wasmReady, setWasmReady] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     init("/agama_profile_wasm_bg.wasm")
@@ -40,53 +45,145 @@ const ProfileBuilder: React.FC = () => {
       .catch(console.error);
   }, []);
 
+  const validate = useCallback(
+    (content: string) => {
+      if (wasmReady) {
+        try {
+          const result = validate_profile(content, JSON.stringify(profileSchema));
+          setValidationErrors(result.errors);
+          setIsModified(false);
+        } catch (e) {
+          console.error("Validation failed", e);
+          const errorMessage = e instanceof Error ? e.message : String(e);
+          setValidationErrors([errorMessage]);
+          setIsModified(false);
+        }
+      }
+    },
+    [wasmReady],
+  );
+
   const updateProfile = (patch: Partial<Profile>) => {
     setProfile((prev) => ({ ...prev, ...patch }));
   };
 
-  const generateYaml = async () => {
-    const content = yamlLib.dump(profile);
-    setYaml(content);
+  const generateJson = useCallback(() => {
+    const content = JSON.stringify(profile, null, 2);
+    setJson(content);
+    setIsModified(false);
+    validate(content);
+  }, [profile, validate]);
 
-    if (wasmReady) {
-      try {
-        const result = validate_profile(content, JSON.stringify(profileSchema));
-        setValidationErrors(result.errors);
-      } catch (e) {
-        console.error("Validation failed", e);
-      }
-    }
+  const handleManualEdit = (_event: React.ChangeEvent<HTMLTextAreaElement>, value: string) => {
+    setJson(value);
+    setIsModified(true);
   };
 
-  return (
-    <Page title={_("Agama Profile Builder")}>
-      <Wizard
-        header={<Title headingLevel="h1">{_("Generate Agama Profile")}</Title>}
-        onClose={() => {}}
-      >
-        <WizardStep name={_("Product")} id="step-product">
+  const downloadFile = () => {
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "profile.json";
+    a.click();
+  };
+
+  const steps = useMemo(
+    () => [
+      {
+        id: "step-product",
+        name: _("Product"),
+        component: (
           <Form>
-            <FormGroup label={_("Target Product")} fieldId="product-id">
-              <Radio
-                label={_("openSUSE Tumbleweed")}
-                id="tw"
-                name="product"
-                isChecked={profile.product.id === "Tumbleweed"}
-                onChange={() => updateProfile({ product: { id: "Tumbleweed" } })}
-              />
-              <Radio
-                label={_("openSUSE Leap 16.0")}
-                id="leap"
-                name="product"
-                isChecked={profile.product.id === "Leap"}
-                onChange={() => updateProfile({ product: { id: "Leap" } })}
+            <FormGroup label={_("SUSE Linux Enterprise")} fieldId="product-sles">
+              {SLES_PRODUCTS.map((p) => (
+                <Radio
+                  key={p.id}
+                  label={p.name}
+                  id={p.id}
+                  name="product"
+                  isChecked={profile.product.id === p.id}
+                  onChange={() => updateProfile({ product: { id: p.id } })}
+                />
+              ))}
+            </FormGroup>
+            <FormGroup label={_("openSUSE")} fieldId="product-opensuse">
+              {OPENSUSE_PRODUCTS.map((p) => (
+                <Radio
+                  key={p.id}
+                  label={p.name}
+                  id={p.id}
+                  name="product"
+                  isChecked={profile.product.id === p.id}
+                  onChange={() => updateProfile({ product: { id: p.id } })}
+                />
+              ))}
+            </FormGroup>
+            <FormGroup label={_("Registration Code")} fieldId="reg-code">
+              <TextInput
+                value={profile.product.registrationCode || ""}
+                onChange={(_e, val) =>
+                  updateProfile({ product: { ...profile.product, registrationCode: val } })
+                }
               />
             </FormGroup>
           </Form>
-        </WizardStep>
-
-        <WizardStep name={_("Users")} id="step-users">
+        ),
+      },
+      {
+        id: "step-system",
+        name: _("System"),
+        component: (
           <Form>
+            <FormGroup label={_("Static Hostname")} fieldId="hostname-static">
+              <TextInput
+                value={profile.hostname?.static || ""}
+                onChange={(_e, val) =>
+                  updateProfile({ hostname: { ...profile.hostname, static: val } })
+                }
+              />
+            </FormGroup>
+            <Grid hasGutter>
+              <GridItem span={4}>
+                <FormGroup label={_("Locale")} fieldId="l10n-locale">
+                  <TextInput
+                    value={profile.l10n?.locale || ""}
+                    onChange={(_e, val) =>
+                      updateProfile({ l10n: { ...profile.l10n, locale: val } })
+                    }
+                  />
+                </FormGroup>
+              </GridItem>
+              <GridItem span={4}>
+                <FormGroup label={_("Keymap")} fieldId="l10n-keymap">
+                  <TextInput
+                    value={profile.l10n?.keymap || ""}
+                    onChange={(_e, val) =>
+                      updateProfile({ l10n: { ...profile.l10n, keymap: val } })
+                    }
+                  />
+                </FormGroup>
+              </GridItem>
+              <GridItem span={4}>
+                <FormGroup label={_("Timezone")} fieldId="l10n-timezone">
+                  <TextInput
+                    value={profile.l10n?.timezone || ""}
+                    onChange={(_e, val) =>
+                      updateProfile({ l10n: { ...profile.l10n, timezone: val } })
+                    }
+                  />
+                </FormGroup>
+              </GridItem>
+            </Grid>
+          </Form>
+        ),
+      },
+      {
+        id: "step-users",
+        name: _("Users"),
+        component: (
+          <Form>
+            <Title headingLevel="h3">{_("First User")}</Title>
             <FormGroup label={_("Full Name")} isRequired fieldId="user-fullname">
               <TextInput
                 isRequired
@@ -121,19 +218,188 @@ const ProfileBuilder: React.FC = () => {
                 }
               />
             </FormGroup>
-          </Form>
-        </WizardStep>
+            <FormGroup label={_("Password")} fieldId="user-password">
+              <TextInput
+                type="password"
+                value={profile.user?.password || ""}
+                onChange={(_e, val) => updateProfile({ user: { ...profile.user!, password: val } })}
+              />
+            </FormGroup>
 
-        <WizardStep name={_("Review")} id="step-review">
+            <Title headingLevel="h3" style={{ marginTop: "20px" }}>
+              {_("Root")}
+            </Title>
+            <FormGroup label={_("Root Password")} fieldId="root-password">
+              <TextInput
+                type="password"
+                value={profile.root?.password || ""}
+                onChange={(_e, val) => updateProfile({ root: { ...profile.root, password: val } })}
+              />
+            </FormGroup>
+          </Form>
+        ),
+      },
+      {
+        id: "step-software",
+        name: _("Software"),
+        component: (
+          <Form>
+            <FormGroup label={_("Additional Packages")} fieldId="soft-packages">
+              <TextArea
+                placeholder={_("vim, git, ...")}
+                value={profile.software?.packages?.join(", ") || ""}
+                onChange={(_e, val) =>
+                  updateProfile({
+                    software: {
+                      ...profile.software,
+                      packages: val
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter((s) => s !== ""),
+                    },
+                  })
+                }
+              />
+            </FormGroup>
+            <FormGroup fieldId="soft-required">
+              <Switch
+                label={_("Only minimal hard dependencies")}
+                isChecked={profile.software?.onlyRequired}
+                onChange={(_e, val) =>
+                  updateProfile({ software: { ...profile.software, onlyRequired: val } })
+                }
+              />
+            </FormGroup>
+          </Form>
+        ),
+      },
+      {
+        id: "step-storage",
+        name: _("Storage"),
+        component: (
+          <Form>
+            <FormGroup fieldId="storage-boot-config">
+              <Switch
+                label={_("Configure bootloader automatically")}
+                isChecked={profile.storage?.boot?.configure ?? true}
+                onChange={(_e, val) =>
+                  updateProfile({
+                    storage: {
+                      ...profile.storage,
+                      boot: { ...profile.storage?.boot, configure: val },
+                    },
+                  })
+                }
+              />
+            </FormGroup>
+            <Title headingLevel="h3">{_("Guided Partitioning")}</Title>
+            <EmptyState variant="sm">
+              <EmptyStateBody>
+                {_(
+                  "Storage configuration is highly complex. The generated profile will use default product volumes by default.",
+                )}
+              </EmptyStateBody>
+            </EmptyState>
+          </Form>
+        ),
+      },
+      {
+        id: "step-network",
+        name: _("Network"),
+        component: (
+          <Form>
+            <FormGroup fieldId="net-copy">
+              <Switch
+                label={_("Copy network configuration to target")}
+                isChecked={profile.network?.state?.copyNetwork}
+                onChange={(_e, val) =>
+                  updateProfile({
+                    network: {
+                      ...profile.network,
+                      state: { ...profile.network?.state, copyNetwork: val },
+                    },
+                  })
+                }
+              />
+            </FormGroup>
+            <Title headingLevel="h3">{_("Proxy")}</Title>
+            <FormGroup fieldId="proxy-enabled">
+              <Switch
+                label={_("Enable Proxy")}
+                isChecked={profile.proxy?.enabled}
+                onChange={(_e, val) => updateProfile({ proxy: { ...profile.proxy, enabled: val } })}
+              />
+            </FormGroup>
+            <FormGroup label={_("HTTP Proxy")} fieldId="proxy-http">
+              <TextInput
+                value={profile.proxy?.httpProxy || ""}
+                onChange={(_e, val) =>
+                  updateProfile({ proxy: { ...profile.proxy, httpProxy: val } })
+                }
+              />
+            </FormGroup>
+          </Form>
+        ),
+      },
+      {
+        id: "step-boot",
+        name: _("Boot"),
+        component: (
+          <Form>
+            <FormGroup label={_("Bootloader Timeout")} fieldId="boot-timeout">
+              <TextInput
+                type="number"
+                value={profile.bootloader?.timeout?.toString() || "0"}
+                onChange={(_e, val) =>
+                  updateProfile({
+                    bootloader: { ...profile.bootloader, timeout: parseInt(val, 10) },
+                  })
+                }
+              />
+            </FormGroup>
+            <FormGroup label={_("Extra Kernel Parameters")} fieldId="boot-params">
+              <TextInput
+                value={profile.bootloader?.extraKernelParams || ""}
+                onChange={(_e, val) =>
+                  updateProfile({ bootloader: { ...profile.bootloader, extraKernelParams: val } })
+                }
+              />
+            </FormGroup>
+          </Form>
+        ),
+      },
+      {
+        id: "step-review",
+        name: _("Review"),
+        component: (
           <Stack hasGutter>
             <StackItem>
-              <Title headingLevel="h2">{_("Generated YAML")}</Title>
-              <Button onClick={generateYaml}>{_("Review & Validate")}</Button>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Title headingLevel="h2">{_("Agama profile (JSON)")}</Title>
+                <Button
+                  variant="plain"
+                  aria-label={_("Copy to clipboard")}
+                  onClick={() => {
+                    navigator.clipboard.writeText(json);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                >
+                  {copied ? <CheckIcon color="green" /> : <CopyIcon />}
+                </Button>
+              </div>
               <TextArea
-                value={yaml}
-                aria-label={_("Generated Profile YAML")}
+                id="generated-json"
+                value={json}
+                onChange={handleManualEdit}
+                aria-label={_("Generated Profile JSON")}
                 autoResize
-                readOnly
                 style={{ fontFamily: "monospace", minHeight: "300px" }}
               />
             </StackItem>
@@ -141,49 +407,92 @@ const ProfileBuilder: React.FC = () => {
               <EmptyState
                 variant="sm"
                 titleText={
-                  validationErrors.length === 0 ? _("Valid Profile") : _("Validation Errors")
+                  isModified
+                    ? undefined
+                    : validationErrors.length === 0
+                      ? _("Valid Profile")
+                      : _("Profile is invalid")
                 }
-                status={validationErrors.length === 0 ? "success" : "danger"}
+                status={
+                  isModified ? undefined : validationErrors.length === 0 ? "success" : "danger"
+                }
               >
                 <EmptyStateBody>
-                  {validationErrors.length === 0 ? (
-                    _("The profile follows the official Agama schema.")
-                  ) : (
-                    <ul
-                      style={{
-                        textAlign: "left",
-                        color: "var(--pf-t--global--color--status--danger--default)",
-                      }}
-                    >
-                      {validationErrors.map((err, i) => (
-                        <li key={i}>{err}</li>
-                      ))}
-                    </ul>
-                  )}
+                  <Stack hasGutter>
+                    {isModified && (
+                      <StackItem>
+                        <Button variant="primary" onClick={() => validate(json)}>
+                          {_("Validate profile")}
+                        </Button>
+                      </StackItem>
+                    )}
+                    {validationErrors.length > 0 && (
+                      <StackItem>
+                        <ul
+                          style={{
+                            textAlign: "left",
+                            color: "var(--pf-t--global--color--status--danger--default)",
+                          }}
+                        >
+                          {validationErrors.map((err, i) => (
+                            <li key={i}>{err}</li>
+                          ))}
+                        </ul>
+                      </StackItem>
+                    )}
+                    {!isModified && validationErrors.length === 0 && (
+                      <StackItem>{_("The profile follows the official Agama schema.")}</StackItem>
+                    )}
+                  </Stack>
                 </EmptyStateBody>
               </EmptyState>
             </StackItem>
-            <StackItem>
-              <ActionGroup>
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    const blob = new Blob([yaml], { type: "text/yaml" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "profile.yaml";
-                    a.click();
-                  }}
-                >
-                  {_("Download Profile")}
-                </Button>
-              </ActionGroup>
-            </StackItem>
           </Stack>
-        </WizardStep>
+        ),
+      },
+    ],
+    [profile, json, isModified, validationErrors, copied, validate],
+  );
+
+  return (
+    <StandalonePage title={_("Agama Profile Builder")}>
+      <Wizard
+        header={<Title headingLevel="h1">{_("Generate Agama Profile")}</Title>}
+        onStepChange={(_event, currentStep) => {
+          if (currentStep.id === "step-review") {
+            generateJson();
+          }
+        }}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        footer={({ activeStep, onNext, onBack, onClose }: any) => {
+          if (!activeStep) return null;
+          const isReview = activeStep.id === "step-review";
+          const canDownload = json && !isModified && validationErrors.length === 0;
+
+          return (
+            <WizardFooter
+              activeStep={activeStep}
+              onNext={() => {
+                if (isReview && canDownload) {
+                  downloadFile();
+                } else {
+                  onNext();
+                }
+              }}
+              onBack={onBack}
+              onClose={onClose}
+              nextButtonText={isReview && canDownload ? _("Download profile") : _("Next")}
+              isNextDisabled={isReview && !canDownload}
+              cancelButtonProps={{ style: { display: "none" } }}
+            />
+          );
+        }}
+      >
+        {steps.map((step) => (
+          <WizardStep key={step.id} {...step} />
+        ))}
       </Wizard>
-    </Page>
+    </StandalonePage>
   );
 };
 
