@@ -1,5 +1,5 @@
-use wasm_bindgen::prelude::*;
 use serde_json::Value;
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct ValidationResult {
@@ -21,7 +21,10 @@ impl ValidationResult {
 }
 
 #[wasm_bindgen]
-pub fn validate_profile(profile_yaml: &str, schema_json: &str) -> Result<ValidationResult, JsValue> {
+pub fn validate_profile(
+    profile_yaml: &str,
+    schema_json: &str,
+) -> Result<ValidationResult, JsValue> {
     console_error_panic_hook::set_once();
 
     let schema: Value = serde_json::from_str(schema_json)

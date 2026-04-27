@@ -170,10 +170,7 @@ impl ProfileValidator {
             .and_then(|s| s.insert("$id".to_string(), serde_json::json!(id)));
 
         let validator = jsonschema::validator_for(&schema).expect("A valid schema");
-        Ok(Self {
-            validator,
-            schema,
-        })
+        Ok(Self { validator, schema })
     }
 
     pub fn contents(&self) -> &serde_json::Value {
